@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Gamepad2, RotateCcw, User, Users, Trophy } from "lucide-react";
+import { Gamepad2, RotateCcw, User, Users, Trophy, BarChart3, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { VolumeControl } from "@/components/VolumeControl";
+import logo from "@/assets/logo.jpg";
 
 type Player = "X" | "O" | null;
 type Winner = Player | "draw";
@@ -17,6 +18,15 @@ interface PlayerNames {
   O: string;
 }
 
+interface Statistics {
+  totalGames: number;
+  xWins: number;
+  oWins: number;
+  draws: number;
+  winStreak: number;
+  bestStreak: number;
+}
+
 const WINNING_COMBINATIONS = [
   [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
   [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
@@ -24,6 +34,7 @@ const WINNING_COMBINATIONS = [
 ];
 
 const Index = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [board, setBoard] = useState<Board>(Array(9).fill(null));
   const [isXTurn, setIsXTurn] = useState(true);
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
@@ -34,6 +45,16 @@ const Index = () => {
   const [playerNames, setPlayerNames] = useState<PlayerNames>({ X: "Player 1", O: "Player 2" });
   const [showNameInput, setShowNameInput] = useState(false);
   const [tempNames, setTempNames] = useState({ X: "", O: "" });
+  const [showStats, setShowStats] = useState(false);
+  const [statistics, setStatistics] = useState<Statistics>({
+    totalGames: 0,
+    xWins: 0,
+    oWins: 0,
+    draws: 0,
+    winStreak: 0,
+    bestStreak: 0,
+  });
+  const [sessionPoints, setSessionPoints] = useState({ X: 0, O: 0 });
   
   const { volume, setVolume, isMuted, setIsMuted, playMoveSound, playWinSound, playDrawSound } = useSoundEffects();
 
@@ -42,6 +63,16 @@ const Index = () => {
     if (savedScores) {
       setScores(JSON.parse(savedScores));
     }
+    const savedStats = localStorage.getItem("tictactoe-stats");
+    if (savedStats) {
+      setStatistics(JSON.parse(savedStats));
+    }
+    
+    // Auto-dismiss splash after 2.5 seconds
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -119,6 +150,31 @@ const Index = () => {
     }
   };
 
+  const updateStatistics = (gameWinner: Winner) => {
+    const newStats = { ...statistics };
+    newStats.totalGames += 1;
+    
+    if (gameWinner === "X") {
+      newStats.xWins += 1;
+      newStats.winStreak += 1;
+      if (newStats.winStreak > newStats.bestStreak) {
+        newStats.bestStreak = newStats.winStreak;
+      }
+      setSessionPoints(prev => ({ ...prev, X: prev.X + 10 }));
+    } else if (gameWinner === "O") {
+      newStats.oWins += 1;
+      newStats.winStreak = 0;
+      setSessionPoints(prev => ({ ...prev, O: prev.O + 10 }));
+    } else {
+      newStats.draws += 1;
+      newStats.winStreak = 0;
+      setSessionPoints(prev => ({ X: prev.X + 5, O: prev.O + 5 }));
+    }
+    
+    setStatistics(newStats);
+    localStorage.setItem("tictactoe-stats", JSON.stringify(newStats));
+  };
+
   const handleCellClick = (index: number) => {
     if (board[index] || winner || isAiThinking) return;
 
@@ -135,6 +191,7 @@ const Index = () => {
       setWinner(gameWinner);
       setWinningLine(line);
       playWinSound();
+      updateStatistics(gameWinner);
       
       confetti({
         particleCount: 100,
@@ -148,14 +205,15 @@ const Index = () => {
       localStorage.setItem("tictactoe-scores", JSON.stringify(newScores));
       
       const winnerName = gameMode === "2player" ? playerNames[gameWinner] : gameWinner;
-      toast.success(`${winnerName} Wins! 🎉`);
+      toast.success(`${winnerName} Wins! +10 points 🎉`);
     } else if (newBoard.every(cell => cell !== null)) {
       setWinner("draw");
       playDrawSound();
+      updateStatistics("draw");
       const newScores = { ...scores, draws: scores.draws + 1 };
       setScores(newScores);
       localStorage.setItem("tictactoe-scores", JSON.stringify(newScores));
-      toast.info("It's a Draw!");
+      toast.info("It's a Draw! +5 points each");
     }
 
     setIsXTurn(!isXTurn);
@@ -175,6 +233,7 @@ const Index = () => {
       setTempNames({ X: "", O: "" });
     } else {
       setGameMode(mode);
+      setSessionPoints({ X: 0, O: 0 });
       resetGame();
     }
   };
@@ -186,8 +245,114 @@ const Index = () => {
     });
     setGameMode("2player");
     setShowNameInput(false);
+    setSessionPoints({ X: 0, O: 0 });
     resetGame();
   };
+
+  const resetStatistics = () => {
+    const emptyStats = {
+      totalGames: 0,
+      xWins: 0,
+      oWins: 0,
+      draws: 0,
+      winStreak: 0,
+      bestStreak: 0,
+    };
+    setStatistics(emptyStats);
+    setScores({ X: 0, O: 0, draws: 0 });
+    localStorage.setItem("tictactoe-stats", JSON.stringify(emptyStats));
+    localStorage.setItem("tictactoe-scores", JSON.stringify({ X: 0, O: 0, draws: 0 }));
+    toast.success("Statistics reset!");
+  };
+
+  // Splash Screen
+  if (showSplash) {
+    return (
+      <div 
+        className="min-h-screen flex flex-col items-center justify-center p-4"
+        style={{ background: "linear-gradient(180deg, #f0a6ca 0%, #c8b6ff 50%, #b8c0ff 100%)" }}
+      >
+        <div className="animate-fade-in flex flex-col items-center">
+          <img 
+            src={logo} 
+            alt="Tic-Tac-Toe" 
+            className="w-64 h-64 object-contain rounded-2xl shadow-2xl animate-pop-in"
+          />
+          <h1 className="mt-6 text-3xl font-bold text-white drop-shadow-lg">Tic-Tac-Toe</h1>
+          <p className="mt-2 text-white/80">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Statistics Modal
+  if (showStats) {
+    const winRate = statistics.totalGames > 0 
+      ? Math.round((statistics.xWins / statistics.totalGames) * 100) 
+      : 0;
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <Card className="w-full max-w-md p-6 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-primary" />
+              Statistics
+            </h2>
+            <Button variant="ghost" size="icon" onClick={() => setShowStats(false)}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 bg-primary/10 rounded-lg text-center">
+              <div className="text-3xl font-bold text-primary">{statistics.totalGames}</div>
+              <div className="text-sm text-muted-foreground">Total Games</div>
+            </div>
+            <div className="p-4 bg-accent/10 rounded-lg text-center">
+              <div className="text-3xl font-bold text-accent">{winRate}%</div>
+              <div className="text-sm text-muted-foreground">X Win Rate</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-3 bg-primary/10 rounded-lg text-center">
+              <div className="text-2xl font-bold text-primary">{statistics.xWins}</div>
+              <div className="text-xs text-muted-foreground">X Wins</div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg text-center">
+              <div className="text-2xl font-bold">{statistics.draws}</div>
+              <div className="text-xs text-muted-foreground">Draws</div>
+            </div>
+            <div className="p-3 bg-accent/10 rounded-lg text-center">
+              <div className="text-2xl font-bold text-accent">{statistics.oWins}</div>
+              <div className="text-xs text-muted-foreground">O Wins</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-muted rounded-lg text-center">
+              <div className="text-xl font-bold">{statistics.winStreak}</div>
+              <div className="text-xs text-muted-foreground">Current Streak</div>
+            </div>
+            <div className="p-3 bg-primary/20 rounded-lg text-center">
+              <div className="text-xl font-bold text-primary">{statistics.bestStreak}</div>
+              <div className="text-xs text-muted-foreground">Best Streak</div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <Button onClick={() => setShowStats(false)} className="w-full">
+              Close
+            </Button>
+            <Button onClick={resetStatistics} variant="destructive" className="w-full">
+              Reset All Statistics
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (showNameInput) {
     return (
@@ -251,9 +416,7 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="w-full max-w-md p-8 space-y-6 shadow-2xl">
           <div className="text-center space-y-2">
-            <div className="inline-flex p-4 bg-gradient-to-br from-primary to-accent rounded-2xl mb-4">
-              <Gamepad2 className="w-12 h-12 text-primary-foreground" />
-            </div>
+            <img src={logo} alt="Tic-Tac-Toe" className="w-24 h-24 mx-auto rounded-xl shadow-lg" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Tic-Tac-Toe
             </h1>
@@ -287,6 +450,15 @@ const Index = () => {
                 <Trophy className="h-4 w-4 text-primary" />
                 <span className="font-semibold">Scores</span>
               </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowStats(true)}
+                className="gap-1"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Stats
+              </Button>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div className="text-center p-2 bg-primary/10 rounded-lg">
@@ -328,7 +500,7 @@ const Index = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="w-full max-w-md space-y-6">
         <Card className="p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <Button
               variant="outline"
               size="sm"
@@ -399,6 +571,18 @@ const Index = () => {
             </Button>
           </div>
 
+          {/* Session Points */}
+          <div className="flex justify-center gap-4 mb-4 p-2 bg-muted/50 rounded-lg">
+            <div className="text-center">
+              <span className="text-xs text-muted-foreground">X Points</span>
+              <div className="text-lg font-bold text-primary">{sessionPoints.X}</div>
+            </div>
+            <div className="text-center">
+              <span className="text-xs text-muted-foreground">O Points</span>
+              <div className="text-lg font-bold text-accent">{sessionPoints.O}</div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-3 gap-3 mb-6">
             {board.map((cell, index) => (
               <button
@@ -419,7 +603,7 @@ const Index = () => {
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center p-2 bg-primary/10 rounded-lg">
               <div className="text-lg font-bold text-primary">{scores.X}</div>
-              <div className="text-xs text-muted-foreground">X</div>
+              <div className="text-xs text-muted-foreground">X Wins</div>
             </div>
             <div className="text-center p-2 bg-muted rounded-lg">
               <div className="text-lg font-bold">{scores.draws}</div>
@@ -427,14 +611,18 @@ const Index = () => {
             </div>
             <div className="text-center p-2 bg-accent/10 rounded-lg">
               <div className="text-lg font-bold text-accent">{scores.O}</div>
-              <div className="text-xs text-muted-foreground">O</div>
+              <div className="text-xs text-muted-foreground">O Wins</div>
             </div>
           </div>
         </Card>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-between">
             <VolumeControl volume={volume} setVolume={setVolume} isMuted={isMuted} setIsMuted={setIsMuted} />
+            <Button variant="ghost" size="sm" onClick={() => setShowStats(true)}>
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Stats
+            </Button>
           </div>
           <Button
             onClick={() => window.open("https://otieu.com/4/7658671", "_blank")}
