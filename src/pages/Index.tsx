@@ -13,6 +13,7 @@ type Player = "X" | "O" | null;
 type Winner = Player | "draw";
 type Board = Player[];
 type GameMode = "2player" | "ai";
+type AIDifficulty = "easy" | "medium" | "hard";
 
 interface PlayerNames {
   X: string;
@@ -43,6 +44,8 @@ const Index = () => {
   const [winningLine, setWinningLine] = useState<number[]>([]);
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 });
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>("hard");
+  const [showDifficultySelect, setShowDifficultySelect] = useState(false);
   const [playerNames, setPlayerNames] = useState<PlayerNames>({ X: "Player 1", O: "Player 2" });
   const [showNameInput, setShowNameInput] = useState(false);
   const [tempNames, setTempNames] = useState({ X: "", O: "" });
@@ -135,25 +138,44 @@ const Index = () => {
     }
   };
 
-  const makeAiMove = () => {
+  const getRandomMove = (currentBoard: Board): number => {
+    const emptyIndices = currentBoard.map((cell, i) => cell === null ? i : -1).filter(i => i !== -1);
+    return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+  };
+
+  const getBestMove = (currentBoard: Board): number => {
     let bestScore = -Infinity;
     let bestMove = -1;
-    const newBoard = [...board];
 
     for (let i = 0; i < 9; i++) {
-      if (newBoard[i] === null) {
-        newBoard[i] = "O";
-        const score = minimax(newBoard, 0, false);
-        newBoard[i] = null;
+      if (currentBoard[i] === null) {
+        currentBoard[i] = "O";
+        const score = minimax(currentBoard, 0, false);
+        currentBoard[i] = null;
         if (score > bestScore) {
           bestScore = score;
           bestMove = i;
         }
       }
     }
+    return bestMove;
+  };
 
-    if (bestMove !== -1) {
-      handleCellClick(bestMove);
+  const makeAiMove = () => {
+    const newBoard = [...board];
+    let move = -1;
+
+    if (aiDifficulty === "easy") {
+      move = getRandomMove(newBoard);
+    } else if (aiDifficulty === "medium") {
+      // 50% chance to play optimally
+      move = Math.random() < 0.5 ? getBestMove(newBoard) : getRandomMove(newBoard);
+    } else {
+      move = getBestMove(newBoard);
+    }
+
+    if (move !== -1) {
+      handleCellClick(move);
     }
   };
 
@@ -283,10 +305,16 @@ const Index = () => {
       setShowNameInput(true);
       setTempNames({ X: "", O: "" });
     } else {
-      setGameMode(mode);
-      setSessionPoints({ X: 0, O: 0 });
-      resetGame();
+      setShowDifficultySelect(true);
     }
+  };
+
+  const selectDifficulty = (difficulty: AIDifficulty) => {
+    setAiDifficulty(difficulty);
+    setShowDifficultySelect(false);
+    setGameMode("ai");
+    setSessionPoints({ X: 0, O: 0 });
+    resetGame();
   };
 
   const confirmNames = () => {
@@ -416,6 +444,61 @@ const Index = () => {
     );
   }
 
+  if (showDifficultySelect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <Card className="w-full max-w-md p-8 space-y-6 shadow-2xl">
+          <div className="text-center space-y-2">
+            <User className="h-12 w-12 mx-auto text-accent" />
+            <h2 className="text-2xl font-bold">Select AI Difficulty</h2>
+            <p className="text-muted-foreground">Choose your challenge level</p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() => selectDifficulty("easy")}
+              size="lg"
+              variant="outline"
+              className="w-full h-14 text-lg border-2 border-green-500/30 hover:border-green-500 hover:bg-green-500/10"
+            >
+              🌱 Easy
+              <span className="ml-2 text-xs text-muted-foreground">(Random moves)</span>
+            </Button>
+            
+            <Button
+              onClick={() => selectDifficulty("medium")}
+              size="lg"
+              variant="outline"
+              className="w-full h-14 text-lg border-2 border-yellow-500/30 hover:border-yellow-500 hover:bg-yellow-500/10"
+            >
+              ⚡ Medium
+              <span className="ml-2 text-xs text-muted-foreground">(50% smart)</span>
+            </Button>
+            
+            <Button
+              onClick={() => selectDifficulty("hard")}
+              size="lg"
+              variant="outline"
+              className="w-full h-14 text-lg border-2 border-red-500/30 hover:border-red-500 hover:bg-red-500/10"
+            >
+              🔥 Hard
+              <span className="ml-2 text-xs text-muted-foreground">(Unbeatable)</span>
+            </Button>
+          </div>
+
+          <Button
+            onClick={() => setShowDifficultySelect(false)}
+            variant="ghost"
+            size="lg"
+            className="w-full"
+          >
+            Back
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   if (showNameInput) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -502,7 +585,7 @@ const Index = () => {
               className="w-full h-16 text-lg border-2 hover:border-accent hover:bg-accent/10"
             >
               <User className="mr-2 h-5 w-5" />
-              vs AI (Unbeatable)
+              vs AI
             </Button>
           </div>
 
@@ -711,7 +794,7 @@ const Index = () => {
             Support Us 💝
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            {gameMode === "ai" ? "Playing against unbeatable AI" : "Local 2-player mode"}
+            {gameMode === "ai" ? `Playing vs AI (${aiDifficulty.charAt(0).toUpperCase() + aiDifficulty.slice(1)})` : "Local 2-player mode"}
           </p>
           <p className="text-center text-xs text-muted-foreground">
             Developer: Alameen Koko
