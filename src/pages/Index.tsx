@@ -9,6 +9,16 @@ import { VolumeControl } from "@/components/VolumeControl";
 import { Leaderboard, LeaderboardEntry } from "@/components/Leaderboard";
 import logo from "@/assets/logo.jpg";
 import { App } from "@capacitor/app";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Player = "X" | "O" | null;
 type Winner = Player | "draw";
@@ -62,6 +72,7 @@ const Index = () => {
     bestStreak: 0,
   });
   const [sessionPoints, setSessionPoints] = useState({ X: 0, O: 0 });
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   
   const { volume, setVolume, isMuted, setIsMuted, playMoveSound, playWinSound, playDrawSound } = useSoundEffects();
 
@@ -645,13 +656,30 @@ const Index = () => {
               Support Us 💝
             </Button>
             <Button
-              onClick={() => App.exitApp()}
+              onClick={() => setShowExitConfirm(true)}
               variant="destructive"
               className="w-full"
             >
               <LogOut className="mr-2 h-4 w-4" />
               Exit Game
             </Button>
+
+            <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Exit Game?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to exit the game? Your current session progress will be saved.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => App.exitApp()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Exit
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <p className="text-xs text-center text-muted-foreground">
               Developer: Alameen Koko
             </p>
