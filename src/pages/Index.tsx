@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Gamepad2, RotateCcw, User, Users, Trophy, BarChart3, X, Crown, LogOut, History } from "lucide-react";
+import { Gamepad2, RotateCcw, User, Users, Trophy, BarChart3, X, Crown, LogOut, History, Palette } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { VolumeControl } from "@/components/VolumeControl";
 import { Leaderboard, LeaderboardEntry } from "@/components/Leaderboard";
 import { GameHistory, GameRecord } from "@/components/GameHistory";
+import { ThemeSwitcher, useThemeInit } from "@/components/ThemeSwitcher";
 import logo from "@/assets/logo.jpg";
 import { App } from "@capacitor/app";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
@@ -92,8 +93,12 @@ const Index = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
   const [moveCount, setMoveCount] = useState(0);
+  const [showThemes, setShowThemes] = useState(false);
   
   const { volume, setVolume, isMuted, setIsMuted, playMoveSound, playWinSound, playDrawSound } = useSoundEffects();
+  
+  // Initialize theme on mount
+  useThemeInit();
 
   useEffect(() => {
     const savedScores = localStorage.getItem("tictactoe-scores");
@@ -453,6 +458,16 @@ const Index = () => {
     );
   }
 
+  // Theme Switcher
+  if (showThemes) {
+    return (
+      <ThemeSwitcher 
+        isOpen={showThemes} 
+        onClose={() => setShowThemes(false)} 
+      />
+    );
+  }
+
   // Statistics Modal
   if (showStats) {
     const winRate = statistics.totalGames > 0 
@@ -733,8 +748,17 @@ const Index = () => {
             </div>
 
             <div className="pt-4 border-t space-y-3">
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-4">
                 <VolumeControl volume={volume} setVolume={setVolume} isMuted={isMuted} setIsMuted={setIsMuted} />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowThemes(true)}
+                  className="gap-1"
+                >
+                  <Palette className="h-4 w-4" />
+                  Theme
+                </Button>
               </div>
               <Button
                 onClick={() => window.open("https://otieu.com/4/7658671", "_blank")}
@@ -895,6 +919,10 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <VolumeControl volume={volume} setVolume={setVolume} isMuted={isMuted} setIsMuted={setIsMuted} />
             <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setShowThemes(true)}>
+                <Palette className="h-4 w-4 mr-1" />
+                Theme
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => setShowLeaderboard(true)}>
                 <Crown className="h-4 w-4 mr-1 text-yellow-500" />
                 Top
