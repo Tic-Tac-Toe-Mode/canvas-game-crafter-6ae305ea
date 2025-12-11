@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MessageCircle, X } from 'lucide-react';
+import { Send, MessageCircle, X, Smile } from 'lucide-react';
 import { ChatMessage, useGameChat } from '@/hooks/useGameChat';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import QuickChatEmojis from './QuickChatEmojis';
 
 interface GameChatProps {
   gameId: string;
@@ -19,6 +20,7 @@ const GameChat: React.FC<GameChatProps> = ({ gameId, playerId, playerName }) => 
   const { playChatSound } = useSoundEffects();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showEmojis, setShowEmojis] = useState(false);
   const typingDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const prevMessageCountRef = useRef(0);
 
@@ -84,6 +86,11 @@ const GameChat: React.FC<GameChatProps> = ({ gameId, playerId, playerName }) => 
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    sendMessage(emoji);
+    setShowEmojis(false);
   };
 
   const formatTime = (dateString: string) => {
@@ -177,9 +184,24 @@ const GameChat: React.FC<GameChatProps> = ({ gameId, playerId, playerName }) => 
         </div>
       </ScrollArea>
 
+      {/* Quick Emojis */}
+      {showEmojis && (
+        <div className="px-3 py-2 border-t border-border bg-muted/30">
+          <QuickChatEmojis onSelectEmoji={handleEmojiSelect} />
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-3 border-t border-border">
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowEmojis(!showEmojis)}
+            className={`shrink-0 ${showEmojis ? 'bg-muted' : ''}`}
+          >
+            <Smile className="w-4 h-4" />
+          </Button>
           <Input
             value={inputMessage}
             onChange={handleInputChange}
