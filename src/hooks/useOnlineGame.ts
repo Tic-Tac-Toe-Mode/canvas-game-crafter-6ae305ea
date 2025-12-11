@@ -215,9 +215,9 @@ export const useOnlineGame = () => {
     const opponentId = myRole === 'X' ? currentGame.player_o_id : currentGame.player_x_id;
     
     if (currentGame.rematch_requested_by === opponentId) {
-      // Both players want rematch - create new game with swapped roles
-      const newGame = await createRematchGame();
-      return !!newGame;
+      // Both players want rematch - reset game with swapped roles
+      const success = await startRematchGame();
+      return success;
     }
 
     // Just mark our request
@@ -236,46 +236,34 @@ export const useOnlineGame = () => {
     return true;
   };
 
-  // Create rematch game with swapped roles
-  const createRematchGame = async () => {
-    if (!currentGame) return null;
+  // Start rematch by resetting the same game with swapped roles
+  const startRematchGame = async () => {
+    if (!currentGame) return false;
 
-    const myRole = getMyRole();
     // Swap roles: previous X becomes O, previous O becomes X
-    const newPlayerXId = currentGame.player_o_id;
-    const newPlayerXName = currentGame.player_o_name;
-    const newPlayerOId = currentGame.player_x_id;
-    const newPlayerOName = currentGame.player_x_name;
-
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('online_games')
-      .insert({
-        player_x_id: newPlayerXId,
-        player_x_name: newPlayerXName,
-        player_o_id: newPlayerOId,
-        player_o_name: newPlayerOName,
+      .update({
+        player_x_id: currentGame.player_o_id,
+        player_x_name: currentGame.player_o_name,
+        player_o_id: currentGame.player_x_id,
+        player_o_name: currentGame.player_x_name,
         board: Array(9).fill(null),
         current_player: 'X',
-        status: 'playing'
+        winner: null,
+        status: 'playing',
+        rematch_requested_by: null
       })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating rematch game:', error);
-      toast.error('Failed to create rematch');
-      return null;
-    }
-
-    // Delete old game
-    await supabase
-      .from('online_games')
-      .delete()
       .eq('id', currentGame.id);
 
-    setCurrentGame(data as unknown as OnlineGame);
+    if (error) {
+      console.error('Error starting rematch:', error);
+      toast.error('Failed to start rematch');
+      return false;
+    }
+
     toast.success('Rematch started! Roles swapped.');
-    return data;
+    return true;
   };
 
   // Check if I requested rematch
