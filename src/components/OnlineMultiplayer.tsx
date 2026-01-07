@@ -516,11 +516,11 @@ export const OnlineMultiplayer = ({ onBack }: OnlineMultiplayerProps) => {
           <p className="text-muted-foreground text-sm">Create or join a game</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-2">
           <Button
             onClick={handleCreateGame}
             size="lg"
-            className="col-span-3 h-12 bg-gradient-to-r from-primary to-primary/90"
+            className="w-full h-12 bg-gradient-to-r from-primary to-primary/90"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -530,55 +530,58 @@ export const OnlineMultiplayer = ({ onBack }: OnlineMultiplayerProps) => {
             )}
             Create Game
           </Button>
-          <Button
-            onClick={() => setShowFriends(true)}
-            size="lg"
-            variant="outline"
-            className="h-12 relative"
-            title="Friends"
-          >
-            <UserPlus className="h-5 w-5" />
-            {(challenges.length + pendingRequests.length) > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">
-                {challenges.length + pendingRequests.length}
-              </span>
-            )}
-          </Button>
-          <Button
-            onClick={() => setShowTournament(true)}
-            size="lg"
-            variant="outline"
-            className="h-12"
-            title="Tournaments"
-          >
-            <Swords className="h-5 w-5" />
-          </Button>
-          <Button
-            onClick={() => setShowSpectator(true)}
-            size="lg"
-            variant="outline"
-            className="h-12"
-            title="Watch live games"
-          >
-            <Eye className="h-5 w-5" />
-          </Button>
-          <Button
-            onClick={() => setShowReplay(true)}
-            size="lg"
-            variant="outline"
-            className="h-12"
-            title="Watch replays"
-          >
-            <Film className="h-5 w-5" />
-          </Button>
-          <Button
-            onClick={() => setShowRankings(true)}
-            size="lg"
-            variant="outline"
-            className="h-12"
-          >
-            <Trophy className="h-5 w-5 text-yellow-500" />
-          </Button>
+          
+          <div className="grid grid-cols-5 gap-2">
+            <Button
+              onClick={() => setShowFriends(true)}
+              size="sm"
+              variant="outline"
+              className="h-10 px-0 relative"
+              title="Friends"
+            >
+              <UserPlus className="h-4 w-4" />
+              {(challenges.length + pendingRequests.length) > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center">
+                  {challenges.length + pendingRequests.length}
+                </span>
+              )}
+            </Button>
+            <Button
+              onClick={() => setShowTournament(true)}
+              size="sm"
+              variant="outline"
+              className="h-10 px-0"
+              title="Tournaments"
+            >
+              <Swords className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => setShowSpectator(true)}
+              size="sm"
+              variant="outline"
+              className="h-10 px-0"
+              title="Watch live games"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => setShowReplay(true)}
+              size="sm"
+              variant="outline"
+              className="h-10 px-0"
+              title="Watch replays"
+            >
+              <Film className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => setShowRankings(true)}
+              size="sm"
+              variant="outline"
+              className="h-10 px-0"
+            >
+              <Trophy className="h-4 w-4 text-yellow-500" />
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-3">
