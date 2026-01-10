@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Gamepad2, RotateCcw, User, Users, Trophy, BarChart3, X, Crown, LogOut, History, Palette, Globe } from "lucide-react";
@@ -10,6 +10,7 @@ import { VolumeControl } from "@/components/VolumeControl";
 import { Leaderboard, LeaderboardEntry } from "@/components/Leaderboard";
 import { GameHistory, GameRecord } from "@/components/GameHistory";
 import { ThemeSwitcher, useThemeInit } from "@/components/ThemeSwitcher";
+import { useAdMob } from "@/hooks/useAdMob";
 import logo from "@/assets/logo.jpg";
 import { App } from "@capacitor/app";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
@@ -95,6 +96,10 @@ const Index = () => {
   const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
   const [moveCount, setMoveCount] = useState(0);
   const [showThemes, setShowThemes] = useState(false);
+  const [gamesCompletedCount, setGamesCompletedCount] = useState(0);
+  
+  // AdMob integration
+  const { showAd, prepareAd, isAdReady, isNative } = useAdMob();
   
   const { volume, setVolume, isMuted, setIsMuted, playMoveSound, playWinSound, playDrawSound } = useSoundEffects();
   
@@ -277,6 +282,24 @@ const Index = () => {
     toast.success("History cleared!");
   };
 
+  // Show interstitial ad after every 3 games
+  const maybeShowAd = useCallback(async () => {
+    const newCount = gamesCompletedCount + 1;
+    setGamesCompletedCount(newCount);
+    
+    if (newCount % 3 === 0) {
+      // Show ad after every 3rd game
+      try {
+        await showAd();
+        console.log('Ad shown after', newCount, 'games');
+      } catch (err) {
+        console.log('Ad not available');
+      }
+      // Prepare next ad
+      prepareAd();
+    }
+  }, [gamesCompletedCount, showAd, prepareAd]);
+
   const updateStatistics = (gameWinner: Winner, totalMoves: number) => {
     const newStats = { ...statistics };
     newStats.totalGames += 1;
@@ -313,6 +336,9 @@ const Index = () => {
     setStatistics(newStats);
     localStorage.setItem("tictactoe-stats", JSON.stringify(newStats));
     addGameToHistory(gameWinner, totalMoves);
+    
+    // Trigger ad check after game completion
+    maybeShowAd();
   };
 
   const handleCellClick = (index: number) => {
