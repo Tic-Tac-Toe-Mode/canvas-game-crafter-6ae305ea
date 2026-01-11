@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Gamepad2, RotateCcw, User, Users, Trophy, BarChart3, X, Crown, LogOut, History, Palette, Globe } from "lucide-react";
+import { Gamepad2, RotateCcw, User, Users, Trophy, BarChart3, X, Crown, LogOut, History, Palette, Globe, Play } from "lucide-react";
 import { OnlineMultiplayer } from "@/components/OnlineMultiplayer";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -904,15 +904,7 @@ const Index = () => {
               )}
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetGame}
-              className="gap-2"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </Button>
+            <div className="w-20" /> {/* Spacer for alignment */}
           </div>
 
           {/* Session Points */}
@@ -927,7 +919,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-4">
             {board.map((cell, index) => (
               <button
                 key={index}
@@ -944,21 +936,34 @@ const Index = () => {
             ))}
           </div>
 
+          {/* Play Again Button - Centered between board and stats */}
+          <div className="flex justify-center mb-4">
+            <Button
+              onClick={resetGame}
+              size="lg"
+              className="gap-2 px-8 py-3 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <Play className="h-5 w-5" />
+              Play Again
+            </Button>
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
-            <div className="text-center p-2 bg-primary/10 rounded-lg">
-              <div className="text-lg font-bold text-primary">{scores.X}</div>
-              <div className="text-xs text-muted-foreground">X Wins</div>
+            <div className="text-center p-3 bg-primary/10 rounded-xl border border-primary/20">
+              <div className="text-2xl font-bold text-primary">{scores.X}</div>
+              <div className="text-xs text-muted-foreground font-medium">X Wins</div>
             </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="text-lg font-bold">{scores.draws}</div>
-              <div className="text-xs text-muted-foreground">Draws</div>
+            <div className="text-center p-3 bg-muted rounded-xl border border-border">
+              <div className="text-2xl font-bold">{scores.draws}</div>
+              <div className="text-xs text-muted-foreground font-medium">Draws</div>
             </div>
-            <div className="text-center p-2 bg-accent/10 rounded-lg">
-              <div className="text-lg font-bold text-accent">{scores.O}</div>
-              <div className="text-xs text-muted-foreground">O Wins</div>
+            <div className="text-center p-3 bg-accent/10 rounded-xl border border-accent/20">
+              <div className="text-2xl font-bold text-accent">{scores.O}</div>
+              <div className="text-xs text-muted-foreground font-medium">O Wins</div>
             </div>
           </div>
         </Card>
+
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
