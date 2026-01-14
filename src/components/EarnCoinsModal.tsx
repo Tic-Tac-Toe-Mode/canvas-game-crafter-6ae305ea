@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Coins, Play, Heart, Users, Loader2, Gift, Sparkles, X, ArrowRight, Zap } from 'lucide-react';
+import { Coins, Play, Heart, Users, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import { useAdMob } from '@/hooks/useAdMob';
 import { CREDITS_CONFIG } from '@/hooks/useGameCredits';
 import { toast } from 'sonner';
@@ -28,24 +28,40 @@ export const EarnCoinsModal: React.FC<EarnCoinsModalProps> = ({
   neededCoins = 0,
   reason = 'general',
 }) => {
-  const { isNative, isAdReady, isLoading, showAd, prepareAd } = useAdMob();
+  const { isNative, showAd, prepareAd } = useAdMob();
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [hasSupportedRecently, setHasSupportedRecently] = useState(false);
 
   const shortage = Math.max(0, neededCoins - currentCoins);
 
   const handleWatchAd = async () => {
+    if (isWatchingAd) return;
+    
     setIsWatchingAd(true);
+    
     try {
+      // Show the ad and wait for completion
       const reward = await showAd();
-      if (reward || !isNative) {
+      
+      // Only reward if the ad was actually completed
+      if (reward) {
+        // Ad was watched successfully - give the reward
         onAdReward();
         toast.success(`🎉 +${CREDITS_CONFIG.AD_WATCH_REWARD} coins earned!`, { duration: 3000 });
+      } else if (isNative) {
+        // On native, null means ad wasn't completed or failed
+        toast.error('❌ Ad was not completed. No coins earned.', { duration: 3000 });
+      } else {
+        // On web, we simulate the reward
+        onAdReward();
+        toast.success(`🎉 +${CREDITS_CONFIG.AD_WATCH_REWARD} coins earned! (Web preview)`, { duration: 3000 });
       }
     } catch (err) {
-      toast.error('Ad not available. Try again later.');
+      console.error('Ad error:', err);
+      toast.error('❌ Ad failed to load. Please try again later.', { duration: 3000 });
     } finally {
       setIsWatchingAd(false);
+      // Prepare the next ad
       prepareAd();
     }
   };
