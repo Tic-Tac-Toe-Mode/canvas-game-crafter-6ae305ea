@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 
@@ -8,8 +8,9 @@ interface AdMobRewardItem {
   amount: number;
 }
 
-// Your AdMob App ID: ca-app-pub-6933845365930069~7195590932
-// Ad Unit IDs
+// AdMob Configuration
+// App ID: ca-app-pub-6933845365930069~7195590932
+// Ad Unit IDs for Interstitial Ads
 const AD_UNIT_IDS = {
   android: {
     interstitial: 'ca-app-pub-6933845365930069/1017017786',
@@ -19,12 +20,19 @@ const AD_UNIT_IDS = {
   },
 };
 
+// Reward amount for watching ads
+const AD_REWARD_AMOUNT = 10;
+
 export const useAdMob = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdReady, setIsAdReady] = useState(false);
   const [lastReward, setLastReward] = useState<AdMobRewardItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Promise resolver for ad completion
+  const adCompletionResolver = useRef<((value: AdMobRewardItem | null) => void) | null>(null);
+  const adWasShown = useRef(false);
 
   const isNative = Capacitor.isNativePlatform();
 
@@ -39,17 +47,15 @@ export const useAdMob = () => {
       const { AdMob } = await import('@capacitor-community/admob');
       
       await AdMob.initialize({
-        initializeForTesting: false, // Using real ads
+        initializeForTesting: false, // Using real ads with your App ID
       });
       
       setIsInitialized(true);
-      console.log('AdMob initialized successfully');
-      toast.success('🎯 AdMob initialized', { duration: 2000 });
+      console.log('AdMob initialized successfully with App ID: ca-app-pub-6933845365930069~7195590932');
       return true;
     } catch (err) {
       console.error('Failed to initialize AdMob:', err);
       setError('Failed to initialize ads');
-      toast.error('❌ AdMob init failed', { duration: 3000 });
       return false;
     }
   }, [isNative]);
@@ -72,6 +78,11 @@ export const useAdMob = () => {
       return false;
     }
 
+    if (isLoading || isAdReady) {
+      console.log('AdMob: Ad already loading or ready');
+      return true;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -80,42 +91,75 @@ export const useAdMob = () => {
       
       // Set up event listeners
       AdMob.addListener(InterstitialAdPluginEvents.Loaded, () => {
-        console.log('Interstitial ad loaded');
+        console.log('Interstitial ad loaded successfully');
         setIsAdReady(true);
         setIsLoading(false);
-        toast.success('📦 Ad loaded & ready', { duration: 2000 });
       });
 
       AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, (info: { code: number; message: string }) => {
         console.error('Interstitial ad failed to load:', info.message);
-        setError('Failed to load ad');
+        setError(`Failed to load ad: ${info.message}`);
         setIsLoading(false);
         setIsAdReady(false);
-        toast.error(`❌ Ad failed: ${info.message}`, { duration: 4000 });
+        
+        // Resolve promise with null (no reward)
+        if (adCompletionResolver.current) {
+          adCompletionResolver.current(null);
+          adCompletionResolver.current = null;
+        }
       });
 
       AdMob.addListener(InterstitialAdPluginEvents.Showed, () => {
-        console.log('Interstitial ad showed');
-        toast.info('📺 Ad showing...', { duration: 2000 });
+        console.log('Interstitial ad is now showing');
+        adWasShown.current = true;
       });
 
       AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-        console.log('Interstitial ad dismissed');
+        console.log('Interstitial ad dismissed - user completed watching');
         setIsAdReady(false);
-        toast.success('✅ Ad completed!', { duration: 2000 });
-        // Give reward after watching
-        const reward = { type: 'coins', amount: 10 };
-        setLastReward(reward);
-        // Prepare next ad
-        prepareInterstitialAd();
+        
+        // Only give reward if ad was actually shown
+        if (adWasShown.current) {
+          const reward: AdMobRewardItem = { type: 'coins', amount: AD_REWARD_AMOUNT };
+          setLastReward(reward);
+          
+          // Resolve the promise with the reward
+          if (adCompletionResolver.current) {
+            adCompletionResolver.current(reward);
+            adCompletionResolver.current = null;
+          }
+          
+          toast.success(`✅ Ad completed! +${AD_REWARD_AMOUNT} coins earned!`, { duration: 3000 });
+        }
+        
+        adWasShown.current = false;
+        
+        // Prepare the next ad
+        setTimeout(() => {
+          prepareInterstitialAd();
+        }, 1000);
+      });
+
+      AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, (info: { code: number; message: string }) => {
+        console.error('Interstitial ad failed to show:', info.message);
+        setError(`Failed to show ad: ${info.message}`);
+        setIsAdReady(false);
+        adWasShown.current = false;
+        
+        // Resolve promise with null (no reward)
+        if (adCompletionResolver.current) {
+          adCompletionResolver.current(null);
+          adCompletionResolver.current = null;
+        }
       });
 
       // Prepare the interstitial ad
       await AdMob.prepareInterstitial({
         adId: getInterstitialAdUnitId(),
-        isTesting: false, // Using real ads
+        isTesting: false, // Real ads
       });
 
+      console.log('Interstitial ad preparation started');
       return true;
     } catch (err) {
       console.error('Error preparing interstitial ad:', err);
@@ -123,38 +167,64 @@ export const useAdMob = () => {
       setIsLoading(false);
       return false;
     }
-  }, [isNative, isInitialized, getInterstitialAdUnitId]);
+  }, [isNative, isInitialized, isLoading, isAdReady, getInterstitialAdUnitId]);
 
-  // Show the interstitial ad
+  // Show the interstitial ad and wait for completion
   const showInterstitialAd = useCallback(async (): Promise<AdMobRewardItem | null> => {
+    // For web testing - simulate a short delay then give reward
     if (!isNative) {
-      // Simulate reward for web testing
-      console.log('AdMob: Simulating reward for web');
-      const simulatedReward = { type: 'coins', amount: 10 };
+      console.log('AdMob: Web mode - simulating ad watch');
+      toast.info('📺 Simulating ad (web mode)...', { duration: 2000 });
+      
+      // Simulate watching an ad
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const simulatedReward: AdMobRewardItem = { type: 'coins', amount: AD_REWARD_AMOUNT };
       setLastReward(simulatedReward);
       return simulatedReward;
     }
 
+    // Native platform
     if (!isAdReady) {
       console.log('AdMob: Ad not ready');
-      setError('Ad not ready yet');
-      toast.warning('⏳ Ad not ready yet', { duration: 2000 });
+      setError('Ad not ready yet. Please wait...');
+      toast.warning('⏳ Ad is loading, please wait...', { duration: 2000 });
+      
+      // Try to prepare an ad
+      prepareInterstitialAd();
       return null;
     }
 
     try {
       const { AdMob } = await import('@capacitor-community/admob');
       
+      // Create a promise that will resolve when the ad is dismissed
+      const rewardPromise = new Promise<AdMobRewardItem | null>((resolve) => {
+        adCompletionResolver.current = resolve;
+        
+        // Timeout after 2 minutes (in case something goes wrong)
+        setTimeout(() => {
+          if (adCompletionResolver.current) {
+            console.log('AdMob: Ad completion timeout');
+            adCompletionResolver.current(null);
+            adCompletionResolver.current = null;
+          }
+        }, 120000);
+      });
+      
+      // Show the ad
       await AdMob.showInterstitial();
       
-      // Return the reward (will be set by the dismissed event listener)
-      return { type: 'coins', amount: 10 };
+      // Wait for the ad to be dismissed and return the reward
+      const reward = await rewardPromise;
+      return reward;
     } catch (err) {
       console.error('Error showing interstitial ad:', err);
       setError('Error showing ad');
+      adCompletionResolver.current = null;
       return null;
     }
-  }, [isNative, isAdReady]);
+  }, [isNative, isAdReady, prepareInterstitialAd]);
 
   // Initialize on mount
   useEffect(() => {
@@ -180,5 +250,7 @@ export const useAdMob = () => {
     // Aliases for backward compatibility
     prepareRewardedAd: prepareInterstitialAd,
     showRewardedAd: showInterstitialAd,
+    // Constants
+    adRewardAmount: AD_REWARD_AMOUNT,
   };
 };
